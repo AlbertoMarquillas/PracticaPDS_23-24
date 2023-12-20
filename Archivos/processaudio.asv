@@ -44,15 +44,14 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             
             audioIN_fft = fft(audioIN, N);
             audioOUT_fft = fft(audioOUT, N);
-            f_audio = linspace(0, fs/2, N/2+1); 
-
-            figure;
+            f_audio = fs*(0:(N/2))/N;
             
+            figure;
             subplot(3, 1, 1);
-            semilogx(f, 20*log10(abs(H_LP)), 'b'); 
+            semilogx(fs, 20*log10(abs(H_LP)), 'b'); 
             hold on;
-            semilogx(f, 20*log10(abs(H_BP)), 'r'); 
-            semilogx(f, 20*log10(abs(H_HP)), 'y');
+            semilogx(fs, 20*log10(abs(H_BP)), 'r'); 
+            semilogx(fs, 20*log10(abs(H_HP)), 'y');
             hold off;
             title('Individual Filters Magnitude Response');
             xlabel('Frequency (Hz)');
@@ -60,15 +59,17 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             legend('Low Pass', 'Band Pass', 'High Pass');
             grid on;
             
+            % Subplot for Custom Filter Response
             subplot(3, 1, 2);
-            semilogx(f, 20*log10(abs(H_combined)));
+            semilogx(fs, 20*log10(abs(H_combined)));
             title('Custom Filter Magnitude Response');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
             grid on;
             
+            % Subplot for Custom Filter Phase
             subplot(3, 1, 3);   
-            semilogx(f, phase_combined * 180 / pi);
+            semilogx(fs, phase_combined * 180 / pi);
             title('Custom Filter Phase');
             xlabel('Frequency (Hz)');
             ylabel('Phase (degrees)');
@@ -77,6 +78,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             figure;
             
             subplot(2,2, 1)
+            f_audio = linspace(0, fs/2, N/2+1); % Correct frequency vector
             plot(f_audio, 20*log10(abs(audioIN_fft(1:N/2+1))));
             title('Original Audio Frequency Spectrum');
             xlabel('Frequency (Hz)');
@@ -89,13 +91,13 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             ylabel('Amplitude');
             
             subplot(2,2, 3)
-            plot((1:length(audioOUT))/fs, audioOUT);
-            title('Filtered Audio Signal');
-            xlabel('Time (s)');
-            ylabel('Amplitude');
+            plot(f_audio, 20*log10(abs(audioOUT_fft(1:N/2+1))));
+            title('Filtered Audio Frequency Spectrum');
+            xlabel('Frequency (Hz)');
+            ylabel('Magnitude (dB)');
 
             subplot(2,2, 4)
-            plot(f_audio, 20*log10(abs(audioOUT_fft(1:N/2+1))));
+            plot((1:length(audioOUT))/fs, audioOUT);
             title('Filtered Audio Signal');
             xlabel('Time (s)');
             ylabel('Amplitude');
