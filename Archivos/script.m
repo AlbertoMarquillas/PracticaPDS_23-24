@@ -1,0 +1,1 @@
+processaudio('musica.wav', 'equalizer', [-20, 25, 0]);
