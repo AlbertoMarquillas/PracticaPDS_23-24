@@ -4,71 +4,86 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
     % effect: string que indica el tipus d'efecte ('equalizer' o 'reverb')
     % param: vector numèric amb els paràmetres de l'efecte
     
-    fs = 44100;  
-
     [audioIN, originalFs] = audioread(audioINfilename);
+
+    fs = 44100;
 
     if originalFs ~= fs
         audioIN = resample(audioIN, fs, originalFs);
     end
 
-    load('filtersSOS.mat');
-    
-    N = 2048; 
-    x = [1; zeros(N-1, 1)];    
-
-    h_LP = sosfilt(SOS_LP, x);
-    h_BP = sosfilt(SOS_BP, x);
-    h_HP = sosfilt(SOS_HP, x);
-    
-    [H_LP, f] = freqz(h_LP, 1, N, fs);
-    [H_BP, f] = freqz(h_BP, 1, N, fs);
-    [H_HP, f] = freqz(h_HP, 1, N, fs);
+    load('filtersSOS.mat', 'G_BP', 'G_HP', 'G_LP', 'SOS_BP', 'SOS_HP', 'SOS_LP');
 
     switch effect
         case 'equalizer'
-            linearGains = 10.^(param / 20);  
 
-            SOS_LP(1, 1:3) = SOS_LP(1, 1:3) * linearGains(1);
-            SOS_BP(1, 1:3) = SOS_BP(1, 1:3) * linearGains(2);
-            SOS_HP(1, 1:3) = SOS_HP(1, 1:3) * linearGains(3);
+            N = 2048; 
+            x = [1; zeros(N-1, 1)];    
+        
+            %m'asseguro dels zeros i calculo rsposta impulsional
+            h_LP = sosfilt(SOS_LP, x);
+            h_BP = sosfilt(SOS_BP, x);
+            h_HP = sosfilt(SOS_HP, x);
+            
+            %trec la frequencia
+            [H_LP, f_LP] = freqz(h_LP, 1, N, fs);
+            [H_BP, f_BP] = freqz(h_BP, 1, N, fs);
+            [H_HP, f_HP] = freqz(h_HP, 1, N, fs);
 
+            %calculo el guany lineal
+            linearGains = 10.^(param / 20);
+
+            %aplico el guany al filtre
+            SOS_LP(1, 1:3) = SOS_LP(1, 1:3) * param(1);
+            SOS_BP(1, 1:3) = SOS_BP(1, 1:3) * param(2);
+            SOS_HP(1, 1:3) = SOS_HP(1, 1:3) * param(3);
+
+            %calculo l'output de l'audio per cada filtre
             audioOUT_LP = sosfilt(SOS_LP, audioIN);
             audioOUT_BP = sosfilt(SOS_BP, audioIN);
             audioOUT_HP = sosfilt(SOS_HP, audioIN);
 
+            %junto els filtres per una sortida conjunta
             audioOUT = audioOUT_LP + audioOUT_BP + audioOUT_HP;
           
+            %calculo el global
             H_combined = H_LP .* linearGains(1) + H_BP .* linearGains(2) + H_HP .* linearGains(3);
-            phase_combined = unwrap(angle(H_combined)); % Unwrap the phase for better visualization
             
+            %trec la fase
+            phase_combined = unwrap(angle(H_combined));
+
+            
+            %fast fourier transorm
             audioIN_fft = fft(audioIN, N);
             audioOUT_fft = fft(audioOUT, N);
+
+            %punts necessaris per plot
             f_audio = linspace(0, fs/2, N/2+1); 
 
+            %plots
             figure;
             
             subplot(3, 1, 1);
-            semilogx(f, 20*log10(abs(H_LP)), 'b'); 
+            semilogx(f_LP, 10*log10(abs(H_LP)), 'b'); 
             hold on;
-            semilogx(f, 20*log10(abs(H_BP)), 'r'); 
-            semilogx(f, 20*log10(abs(H_HP)), 'y');
+            semilogx(f_BP, 10*log10(abs(H_BP)), 'r'); 
+            semilogx(f_HP, 10*log10(abs(H_HP)), 'y');
             hold off;
-            title('Individual Filters Magnitude Response');
+            title('Individual Filters');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
-            legend('Low Pass', 'Band Pass', 'High Pass');
+            legend('LowPass filter', 'BandPass filter', 'HighPass filter');
             grid on;
             
             subplot(3, 1, 2);
-            semilogx(f, 20*log10(abs(H_combined)));
-            title('Custom Filter Magnitude Response');
+            semilogx(fs, 20*log10(abs(H_combined)));
+            title('Custom Filter Response');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
             grid on;
             
             subplot(3, 1, 3);   
-            semilogx(f, phase_combined * 180 / pi);
+            semilogx(fs, phase_combined * 180 / pi);
             title('Custom Filter Phase');
             xlabel('Frequency (Hz)');
             ylabel('Phase (degrees)');
@@ -89,13 +104,13 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             ylabel('Amplitude');
             
             subplot(2,2, 3)
-            plot((1:length(audioOUT))/fs, audioOUT);
+            plot(f_audio, 20*log10(abs(audioOUT_fft(1:N/2+1))));
             title('Filtered Audio Signal');
-            xlabel('Time (s)');
-            ylabel('Amplitude');
+            xlabel('Frequency (Hz)');
+            ylabel('Magnitude (dB)');
 
             subplot(2,2, 4)
-            plot(f_audio, 20*log10(abs(audioOUT_fft(1:N/2+1))));
+            plot((1:length(audioOUT))/fs, audioOUT);
             title('Filtered Audio Signal');
             xlabel('Time (s)');
             ylabel('Amplitude');
@@ -161,14 +176,10 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             xlabel('Time (s)');
             ylabel('Amplitude');
 
-        case 'none'
-            soundsc(audioIN, fs);
-
         otherwise
             error('Tipus d''efecte no vàlid. Trieu ''equalizer'' o ''reverb''.');
     end
 
-    % Reproduir l'àudio de sortida
-    soundsc(audioOUT, fs);
+    %soundsc(audioOUT, fs);
 
 end
