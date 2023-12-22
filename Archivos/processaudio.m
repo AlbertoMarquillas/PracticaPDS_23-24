@@ -37,7 +37,8 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
           
             N = 2048; 
             x = [1; zeros(N-1, 1)];    
-        
+            [min_gain, max_gain] = bounds(param);
+
             %m'asseguro dels zeros i calculo rsposta impulsional
             h_LP = sosfilt(SOS_LP, x);
             h_BP = sosfilt(SOS_BP, x);
@@ -56,15 +57,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             H_combined = H_LP + H_BP + H_HP ;
             
             %trec la fase
-            phase = unwrap(angle(H_combined));
-
-            %fast fourier transorm
-            audioIN_fft = fft(audioIN, N);
-            audioOUT_fft = fft(audioOUT, N);
-
-            %punts necessaris per plot
-            f_audio = linspace(0, fs/2, N/2+1); 
-
+            phase = phasez(H_LP, 1) + phasez(H_BP,1) + phasez(H_HP,1);
             %plots
             figure;
             
@@ -78,7 +71,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
             xlim([0 23000]);
-            ylim([-45 28]);
+            ylim([min_gain-15 max_gain+15]);
             legend('LowPass filter', 'BandPass filter', 'HighPass filter');
             grid on;
             
@@ -88,108 +81,63 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
             xlim([0 23000]);
-            ylim([-45 28]);
+            ylim([min_gain-15 max_gain+15]);
             grid on;
             
             subplot(3, 1, 3);   
-            semilogx(fs, 10*log10(abs(phase)));
+            semilogx(phase);
             title('Custom Filter Phase');
             xlabel('Frequency (Hz)');
             ylabel('Phase (degrees)');
-
+            xlim([0 23000]);
+            ylim([-25 0]);
             grid on;
-            
-            figure;
-            
-            subplot(2,2, 1)
-            plot(f_audio, 20*log10(abs(audioIN_fft(1:N/2+1))));
-            title('Original-Freq');
-            xlabel('Frequency (Hz)');
-            ylabel('Magnitude (dB)');
-            
-            subplot(2,2, 2)
-            plot((1:length(audioIN))/fs, audioIN);
-            title('Original - Time');
-            xlabel('Time (s)');
-            ylabel('Amplitude');
-            
-            subplot(2,2, 3)
-            plot(f_audio, 20*log10(abs(audioOUT_fft(1:N/2+1))));
-            title('Filtered - Freq');
-            xlabel('Frequency (Hz)');
-            ylabel('Magnitude (dB)');
-
-            subplot(2,2, 4)
-            plot((1:length(audioOUT))/fs, audioOUT);
-            title('Filtered - Time');
-            xlabel('Time (s)');
-            ylabel('Amplitude');
-
-            % Adjust the layout to prevent subplot overlapping
-            sgtitle('Equalizer Effect Applied');
-            set(gcf, 'Position', get(0, 'Screensize')); % Optional: Maximize figure to fit screen
 
            
         case 'reverb'
-            Tr = param(1);  % Reverberation time in seconds
-            M = param(2);   % Mix coefficient in percent
-        
-            c = -log(0.001) / (Tr * fs);
-        
-            noiseLength = Tr * fs;
-            noise = randn(noiseLength, 1);
-        
-            t = (0:noiseLength-1)'/fs;
-            envelope = exp(-c * t);
-            h_reverb = envelope .* noise;
-        
-            h_reverb = h_reverb / norm(h_reverb);
-        
-            % Apply the reverberation effect
-            paddedAudioIN = [audioIN; zeros(length(h_reverb)-1, 1)];
-            audioOUT_reverb = fftfilt(h_reverb, paddedAudioIN);
-        
-            audioOUT = audioIN * (1 - M/100) + audioOUT_reverb(1:length(audioIN)) * (M/100);
+            Tr = param(1); 
+            M = param(2);
 
-            % Assuming audioOUT is the audio signal after applying reverberation
-            
-            % Compute FFT for the original and filtered signals
-            audioIN_fft = fft(audioIN);
-            audioOUT_fft = fft(audioOUT);
-            f_audio = fs*(0:(length(audioIN)/2))/length(audioIN);
-            
-            % Plot 1: Original Frequency Spectrum
-            figure;
-            plot(f_audio, audioIN_fft(1:length(audioIN)/2+1));
-            title('Original Audio Frequency Spectrum');
-            xlabel('Frequency (Hz)');
-            ylabel('Magnitude (dB)');
-            
-            % Plot 2: Original Time-Domain Signal
-            figure;
-            plot((1:length(audioIN))/fs, audioIN);
-            title('Original Audio Signal');
-            xlabel('Time (s)');
-            ylabel('Amplitude');
-            
-            % Plot 3: Filtered Frequency Spectrum
-            figure;
-            plot(f_audio, audioOUT_fft(1:length(audioOUT)/2+1));
-            title('Reverberated Audio Frequency Spectrum');
-            xlabel('Frequency (Hz)');
-            ylabel('Magnitude (dB)');
-            
-            % Plot 4: Filtered Time-Domain Signal
-            figure;
-            plot((1:length(audioOUT))/fs, audioOUT);
-            title('Reverberated Audio Signal');
-            xlabel('Time (s)');
-            ylabel('Amplitude');
+            10 * log10 (abs(A(Tr)))
 
-        otherwise
+            randn()
+            senyalConvolucionada = fftfilt() %genera a la sortida un senyal de la mateixa durada que l entrada
+
+            senyalZeros = zeros();
+            senyalOutput = [senyalConvolucionada senyalZeros]
+
+            H = H/norm(H); %normalitzar la resposta impulsional
+            ye = x*(1-M/100) + y*(M/100);
+
+         otherwise
             error('Tipus d''efecte no vàlid. Trieu ''equalizer'' o ''reverb''.');
+    
     end
 
-    %soundsc(audioOUT, fs);
+    figure;
+    
+    subplot(2,2, 1)
+    plot(f_audio, 20*log10(abs(audioIN_fft(1:N/2+1))));
+    title('Original-Freq');
+    xlabel('Frequency (Hz)');
+    ylabel('Magnitude (dB)');
+    
+    subplot(2,2, 2)
+    plot((1:length(audioIN))/fs, audioIN);
+    title('Original - Time');
+    xlabel('Time (s)');
+    ylabel('Amplitude');
+    
+    subplot(2,2, 3)
+    plot(f_audio, 20*log10(abs(audioOUT_fft(1:N/2+1))));
+    title('Filtered - Freq');
+    xlabel('Frequency (Hz)');
+    ylabel('Magnitude (dB)');
+
+    subplot(2,2, 4)
+    plot((1:length(audioOUT))/fs, audioOUT);
+    title('Filtered - Time');
+    xlabel('Time (s)');
+    ylabel('Amplitude');
 
 end

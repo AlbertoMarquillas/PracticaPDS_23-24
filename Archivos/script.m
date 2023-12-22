@@ -1,1 +1,1 @@
-processaudio('musica.wav', 'equalizer', [10 -10 20]);
+processaudio('musica.wav', 'equalizer', [-100 0 -100]);
