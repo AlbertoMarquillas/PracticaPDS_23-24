@@ -95,19 +95,34 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
 
            
         case 'reverb'
-            Tr = param(1); 
-            M = param(2);
+            Tr = param(1); % Tiempo de reverberación
+            M = param(2);  % Intensidad del efecto
 
-            10 * log10 (abs(A(Tr)))
+            % Calcular c para la envolvente exponencial
+            c = 10^(-3/(fs*Tr));
 
-            randn()
-            senyalConvolucionada = fftfilt() %genera a la sortida un senyal de la mateixa durada que l entrada
+            % Crear ruido blanco gaussiano
+            s = randn(fs*Tr, 1);
 
-            senyalZeros = zeros();
-            senyalOutput = [senyalConvolucionada senyalZeros]
+            % Crear envolvente exponencial decreciente
+            t = (0:length(s)-1)'/fs;
+            A = c.^t;
 
-            H = H/norm(H); %normalitzar la resposta impulsional
-            ye = x*(1-M/100) + y*(M/100);
+            % Crear respuesta impulsional
+            Hr = A .* s;
+
+            % Normalizar respuesta impulsional
+            Hr = Hr / norm(Hr);
+
+            % Extender señal de entrada con ceros
+            extendedAudioIN = [audioIN; zeros(length(Hr)-1, size(audioIN, 2))];
+
+            % Aplicar efecto de reverberación
+            y = fftfilt(Hr, extendedAudioIN);
+
+            % Mezclar señal original y señal procesada
+            audioOUT = audioIN*(1-M/100) + y(1:length(audioIN), :)*(M/100);
+
 
          otherwise
             error('Tipus d''efecte no vàlid. Trieu ''equalizer'' o ''reverb''.');
