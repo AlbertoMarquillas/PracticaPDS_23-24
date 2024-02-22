@@ -56,9 +56,16 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
 
             %calculo el global
             H_combined = H_LP + H_BP + H_HP ;
-            
+            phase = angle(H_combined);
+
             %trec la fase
             phase = phasez(H_LP, 1) + phasez(H_BP,1) + phasez(H_HP,1);
+
+            f_audio = linspace(0, fs/2, length(audioIN)/2+1);
+
+            audioIN_fft = fft(audioIN);
+            audioOUT_fft = fft(audioOUT);
+            
             %plots
             figure;
             
@@ -85,39 +92,44 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             ylim([min_gain-15 max_gain+15]);
             grid on;
             
+
             subplot(3, 1, 3);   
-            semilogx(phase);
+            plot((0:length(phase)-1)/fs, phase); % Plot de la fase en función del tiempo
             title('Custom Filter Phase');
-            xlabel('Frequency (Hz)');
+            xlabel('Time (s)');
             ylabel('Phase (degrees)');
-            xlim([0 23000]);
-            ylim([-25 0]);
             grid on;
-            figure;
-            
-            subplot(2,2, 1)
-            plot(f_audio, 20*log10(abs(audioIN(1:N/2+1))));
-            title('Original-Freq');
-            xlabel('Frequency (Hz)');
-            ylabel('Magnitude (dB)');
-            
-            subplot(2,2, 2)
-            plot((1:length(audioIN))/fs, audioIN);
+
+            % Plot del dominio de la frecuencia
+            figure;            
+            subplot(2, 2, 1);
+            plot((0:length(audioIN)-1)/fs, audioIN);
             title('Original - Time');
             xlabel('Time (s)');
             ylabel('Amplitude');
+            grid on;
             
-            subplot(2,2, 3)
-            plot(f_audio, 20*log10(abs(audioOUT(1:N/2+1))));
-            title('Filtered - Freq');
-            xlabel('Frequency (Hz)');
-            ylabel('Magnitude (dB)');
-        
-            subplot(2,2, 4)
-            plot((1:length(audioOUT))/fs, audioOUT);
+            subplot(2, 2, 3);
+            plot((0:length(audioOUT)-1)/fs, audioOUT);
             title('Filtered - Time');
             xlabel('Time (s)');
             ylabel('Amplitude');
+            grid on;
+
+            subplot(2, 2, 2);
+            semilogx(f_audio, 20*log10(abs(audioIN_fft(1:length(audioIN)/2+1))));
+            title('Original - Freq');
+            xlabel('Frequency (Hz)');
+            ylabel('Magnitude (dB)');
+            xlim([0 100000]);
+            
+            subplot(2, 2, 4);
+            semilogx(f_audio, 20*log10(abs(audioOUT_fft(1:length(audioOUT)/2+1))));
+            title('Filtered - Freq');
+            xlabel('Frequency (Hz)');
+            ylabel('Magnitude (dB)');
+            xlim([0 100000]);
+
            
         case 'reverb'
 
@@ -198,27 +210,28 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
            
             % Plot del dominio de la frecuencia
             figure;
-            subplot(2, 1, 1);
-            plot(f_audio, 20*log10(abs(audioIN_fft(1:length(audioIN)/2+1))));
+            subplot(2, 2, 1);
+            semilogx(f_audio, 20*log10(abs(audioIN_fft(1:length(audioIN)/2+1))));
             title('Original - Freq');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
+            xlim([0 100000]);
             
-            subplot(2, 1, 2);
-            plot(f_audio_2, 20*log10(abs(audioOUT_mix_fft(1:length(audioOUT_mix)/2+1))));
+
+            subplot(2, 2, 3);
+            semilogx(f_audio_2, 20*log10(abs(audioOUT_mix_fft(1:length(audioOUT_mix)/2+1))));
             title('Filtered - Freq');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
-            
-            % Plot del dominio del tiempo
-            figure;
-            subplot(2, 1, 1);
+            xlim([0 10000]);
+
+            subplot(2, 2, 2);
             plot((0:length(audioIN)-1)/fs, audioIN);
             title('Original - Time');
             xlabel('Time (s)');
             ylabel('Amplitude');
             
-            subplot(2, 1, 2);
+            subplot(2, 2, 4);
             plot((0:length(audioOUT_mix)-1)/fs, audioOUT_mix);
             title('Filtered - Time');
             xlabel('Time (s)');
