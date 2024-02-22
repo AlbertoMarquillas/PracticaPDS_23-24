@@ -141,8 +141,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             
             % Calcular A(t)
             A = c .^ t; %envolupant exponencial decreixent de la resposta impulsional
-            s = randn(N, 1);  %soroll blanc i Gaussià de mitja 0 i variància 1. La funció randn.m permet generar mostres d un soroll Gaussià amb mitja 0 i variància 1.
-            
+            s = randn(size(t));  %soroll blanc i Gaussià de mitja 0 i variància 1. La funció randn.m permet generar mostres d un soroll Gaussià amb mitja 0 i variància 1.
 
             %Temps dereverberació 𝑇r: el temps que triga en decaure l energia de la resposta impulsional 60 dB respecte del 
             %valor inicial
@@ -181,17 +180,20 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
 
             %apliquem el coeficient de mescla M de la següent forma:
             %ye = x* (1-M/100)+ y*(M/100)
-            audioOUT_mix = audioIN * (1 - M/100) + audioOUT * (M/100);
-            
+            disp(size(audioIN_extended));
+            disp(size(audioOUT));
+            audioOUT_mix = audioIN_extended .* (1 - M/100) + audioOUT .* (M/100);
+
             % Construir la señal de salida sumando la señal de entrada con la reverberación deseada
-            audioOUT_mix = audioIN + audioOUT_mix;
+            audioOUT_mix = audioIN_extended + audioOUT_mix;
             
             % Calcular la FFT de las señales de audio de entrada y salida
-            audioIN_fft = fft(audioIN);
+            audioIN_fft = fft(audioIN_extended);
             audioOUT_mix_fft = fft(audioOUT_mix);
             
             % Definir el vector de frecuencia
             f_audio = linspace(0, fs/2, length(audioIN)/2+1);
+            f_audio_2 = linspace(0, fs/2, length(audioOUT_mix_fft)/2+1);
             
            
             % Plot del dominio de la frecuencia
@@ -203,7 +205,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             ylabel('Magnitude (dB)');
             
             subplot(2, 1, 2);
-            plot(f_audio, 20*log10(abs(audioOUT_mix_fft(1:length(audioOUT_mix)/2+1))));
+            plot(f_audio_2, 20*log10(abs(audioOUT_mix_fft(1:length(audioOUT_mix)/2+1))));
             title('Filtered - Freq');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
