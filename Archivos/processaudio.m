@@ -225,7 +225,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
          otherwise
             error('Tipus d''efecte no vàlid. Trieu ''equalizer'' o ''reverb''.');
     
-    end
+    end 
 
 
 
