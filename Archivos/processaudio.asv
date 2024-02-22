@@ -8,6 +8,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
 
     fs = 44100;
     f_audio = 44100;
+    N = 2048;
 
     if originalFs ~= fs
         audioIN = resample(audioIN, fs, originalFs);
@@ -124,24 +125,16 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             Tr = param(1); %Temps de reverberació
             M = param(2); %Factors de mescla
 
-            N = Tr * fs; %muestras totales
-
             %implementar l’efecte de reverberació tot usant com a resposta impulsional un soroll blanc
             %Gaussià modulat amb una funció exponencial decreixent en el temps.
             
             %hr(t) = A(t)s(t)
             %A(t) = c^tu(t)
 
-            %Calculem el numero de mostres totals que tindra la reverb
-
             %Calcul resposta mpulsional
-            c = 10^(-60 / (10 * Tr));
-            % Generar el vector de tiempo
-            t = (0:N-1) / fs * Tr;
-            
-            % Calcular A(t)
-            A = c .^ t; %envolupant exponencial decreixent de la resposta impulsional
-            s = randn(N, 1);  %soroll blanc i Gaussià de mitja 0 i variància 1. La funció randn.m permet generar mostres d un soroll Gaussià amb mitja 0 i variància 1.
+            c = 0.9; %constant real 𝑐 (𝑐<1) determina el grau de decreixement de l%energia de la resposta impulsional
+            A = c.^(0:N-1); %envolupant exponencial decreixent de la resposta impulsional
+            s = randn(size(Tr));  %soroll blanc i Gaussià de mitja 0 i variància 1. La funció randn.m permet generar mostres d un soroll Gaussià amb mitja 0 i variància 1.
             
 
             %Temps dereverberació 𝑇r: el temps que triga en decaure l energia de la resposta impulsional 60 dB respecte del 
@@ -163,65 +156,46 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             %dividint-la per la seva norma Euclidiana -> funcio: norm.m
 
             hr = hr / norm(hr);
-    
-            % Calcular la duración total de la respuesta impulsional en muestras
-            respuesta_impulsional_muestras = length(hr);
-            
-            % Calcular la cantidad de ceros a agregar
-            ceros_a_agregar = respuesta_impulsional_muestras - 1;
-
-            % Generar el vector de ceros de reverberación
-            ceros_reverberacion = zeros(ceros_a_agregar, 1);
-            
-            % Concatenar los ceros de reverberación al final del audio de entrada
-            audioIN_extended = [audioIN; ceros_reverberacion];
-
-            % Filtrar el audio de entrada con la respuesta impulsional
-            audioOUT = fftfilt(hr, audioIN_extended);
 
             %apliquem el coeficient de mescla M de la següent forma:
             %ye = x* (1-M/100)+ y*(M/100)
-            audioOUT_mix = audioIN * (1 - M/100) + audioOUT * (M/100);
             
-            % Construir la señal de salida sumando la señal de entrada con la reverberación deseada
-            audioOUT_mix = audioIN + audioOUT_mix;
-            
-            % Calcular la FFT de las señales de audio de entrada y salida
-            audioIN_fft = fft(audioIN);
-            audioOUT_mix_fft = fft(audioOUT_mix);
-            
+            audioOUT = fftfilt(hr, [audioIN; zeros(length(hr)-1, 1)]);
+            audioOUT = audioIN * (1 - M/100) + audioOUT(1:length(audioIN)) * (M/100);
+    
             % Definir el vector de frecuencia
             f_audio = linspace(0, fs/2, length(audioIN)/2+1);
-            
-           
+        
+            % Calcular la FFT de las señales de audio de entrada y salida
+            audioIN_fft = fft(audioIN);
+            audioOUT_fft = fft(audioOUT);
+
             % Plot del dominio de la frecuencia
             figure;
-            subplot(2, 1, 1);
+            subplot(2, 2, 1);
             plot(f_audio, 20*log10(abs(audioIN_fft(1:length(audioIN)/2+1))));
             title('Original - Freq');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
-            
-            subplot(2, 1, 2);
-            plot(f_audio, 20*log10(abs(audioOUT_mix_fft(1:length(audioOUT_mix)/2+1))));
+        
+            subplot(2, 2, 2);
+            plot(f_audio, 20*log10(abs(audioOUT_fft(1:length(audioOUT)/2+1))));
             title('Filtered - Freq');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
-            
+        
             % Plot del dominio del tiempo
-            figure;
-            subplot(2, 1, 1);
+            subplot(2, 2, 3);
             plot((0:length(audioIN)-1)/fs, audioIN);
             title('Original - Time');
             xlabel('Time (s)');
             ylabel('Amplitude');
-            
-            subplot(2, 1, 2);
-            plot((0:length(audioOUT_mix)-1)/fs, audioOUT_mix);
+        
+            subplot(2, 2, 4);
+            plot((0:length(audioOUT)-1)/fs, audioOUT);
             title('Filtered - Time');
             xlabel('Time (s)');
             ylabel('Amplitude');
-
          otherwise
             error('Tipus d''efecte no vàlid. Trieu ''equalizer'' o ''reverb''.');
     

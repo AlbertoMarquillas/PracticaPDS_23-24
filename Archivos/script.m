@@ -1,1 +1,1 @@
-processaudio('musica.wav', 'equalizer', [-100 0 -100]);
+processaudio('hola_retallada.wav', 'reverb', [1 100]);
