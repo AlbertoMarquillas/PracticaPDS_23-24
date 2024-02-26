@@ -7,7 +7,6 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
     [audioIN, originalFs] = audioread(audioINfilename);
 
     fs = 44100;
-    f_audio = 44100;
 
     if originalFs ~= fs
         audioIN = resample(audioIN, fs, originalFs);
@@ -58,13 +57,11 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             H_combined = H_LP + H_BP + H_HP ;
             phase = angle(H_combined);
 
-            %trec la fase
-            phase = phasez(H_LP, 1) + phasez(H_BP,1) + phasez(H_HP,1);
-
             f_audio = linspace(0, fs/2, length(audioIN)/2+1);
 
             audioIN_fft = fft(audioIN);
             audioOUT_fft = fft(audioOUT);
+            phase_fft = fft(phase);
             
             %plots
             figure;
@@ -93,12 +90,22 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             grid on;
             
 
-            subplot(3, 1, 3);   
-            plot((0:length(phase)-1)/fs, phase); % Plot de la fase en función del tiempo
-            title('Custom Filter Phase');
-            xlabel('Time (s)');
+            frequency_vector = [f_LP, f_BP, f_HP];
+
+            % Plot de la fase en función de la frecuencia
+            subplot(3, 1, 3);
+            % Código para la tercera gráfica
+            plot(frequency_vector, phase);
+            title('Phase');
+            xlabel('Frequency (Hz)');
             ylabel('Phase (degrees)');
             grid on;
+
+            original_magnitude_vector = abs(audioIN_fft(1:length(audioIN_fft)/2+1));
+            frequency_vector = linspace(0, fs/2, length(original_magnitude_vector));
+            original_magnitude_vector = abs(audioIN_fft(1:length(audioIN_fft)/2+1));
+            filtered_magnitude_vector = abs(audioOUT_fft(1:length(audioOUT_fft)/2+1));
+
 
             % Plot del dominio de la frecuencia
             figure;            
@@ -117,14 +124,14 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             grid on;
 
             subplot(2, 2, 2);
-            semilogx(f_audio, 20*log10(abs(audioIN_fft(1:length(audioIN)/2+1))));
+            semilogx(frequency_vector, original_magnitude_vector);
             title('Original - Freq');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
             xlim([0 100000]);
             
             subplot(2, 2, 4);
-            semilogx(f_audio, 20*log10(abs(audioOUT_fft(1:length(audioOUT)/2+1))));
+            semilogx(frequency_vector, filtered_magnitude_vector);
             title('Filtered - Freq');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
