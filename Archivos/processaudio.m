@@ -201,7 +201,6 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             % Definir el vector de frecuencia
             f_audio = linspace(0, fs/2, length(audioIN)/2+1);
             f_audio_2 = linspace(0, fs/2, length(audioOUT_mix_fft)/2+1);
-            
            
             % Plot del dominio de la frecuencia
             figure;
@@ -211,7 +210,6 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
             xlim([0 100000]);
-            
 
             subplot(2, 2, 3);
             semilogx(f_audio_2, 20*log10(abs(audioOUT_mix_fft(1:length(audioOUT_mix)/2+1))));
