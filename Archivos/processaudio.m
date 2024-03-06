@@ -7,16 +7,19 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
     [audioIN, originalFs] = audioread(audioINfilename);
 
     fs = 44100;
-    f_audio = 44100;
 
     if originalFs ~= fs
         audioIN = resample(audioIN, fs, originalFs);
     end
 
-    load('filtersSOS.mat', 'G_BP', 'G_HP', 'G_LP', 'SOS_BP', 'SOS_HP', 'SOS_LP');
+    load('filtersSOS.mat','G_BP','G_LP','G_HP', 'SOS_LP', 'SOS_BP', 'SOS_HP');
 
     switch effect
         case 'equalizer'
+            
+            n = 2080;
+            N = 500;
+            x = [1; zeros(N-1, 1)];
 
             %aplico el guany al filtre
             gainsLP = 10.^(param(1)/20);
@@ -24,56 +27,43 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             gainsHP = 10.^(param(3)/20);
 
             %aplico el guany al filtre
-            SOS_LP(1, 1:3) = SOS_LP(1, 1:3) * prod(G_LP);
-            SOS_BP(1, 1:3) = SOS_BP(1, 1:3) * prod(G_BP);
-            SOS_HP(1, 1:3) = SOS_HP(1, 1:3) * prod(G_HP);
-
-            %calculo l'output de l'audio per cada filtre
-            audioOUT_LP = sosfilt(SOS_LP, audioIN);
-            audioOUT_BP = sosfilt(SOS_BP, audioIN);
-            audioOUT_HP = sosfilt(SOS_HP, audioIN);
-
-            %junto els filtres per una sortida conjunta
-            audioOUT = audioOUT_LP + audioOUT_BP + audioOUT_HP;
-          
-            N = 2048; 
-            x = [1; zeros(N-1, 1)];    
-            [min_gain, max_gain] = bounds(param);
+            SOS_LP(1, 1:3) = SOS_LP(1, 1:3) * prod(gainsLP) * db2mag(param(1));
+            SOS_BP(1, 1:3) = SOS_BP(1, 1:3) * prod(gainsBP) * db2mag(param(2));
+            SOS_HP(1, 1:3) = SOS_HP(1, 1:3) * prod(gainsHP) * db2mag(param(3));
 
             %m'asseguro dels zeros i calculo rsposta impulsional
             h_LP = sosfilt(SOS_LP, x);
             h_BP = sosfilt(SOS_BP, x);
             h_HP = sosfilt(SOS_HP, x);
             
-            h_LP = h_LP * gainsLP;
-            h_BP = h_BP * gainsBP;
-            h_HP = h_HP * gainsHP;
-
             %trec la frequencia
-            [H_LP, f_LP] = freqz(h_LP, 1, N, fs);
-            [H_BP, f_BP] = freqz(h_BP, 1, N, fs);
-            [H_HP, f_HP] = freqz(h_HP, 1, N, fs);
+            [H_LP, f_LP] = freqz(h_LP, 1, n, fs);
+            [H_BP, f_BP] = freqz(h_BP, 1, n, fs);
+            [H_HP, f_HP] = freqz(h_HP, 1, n, fs);
+            [H_total, f_audioIN] = freqz(audioIN,1,length(audioIN),fs);
+
+            %calculo l'output de l'audio per cada filtre
+            audioOUT_LP = sosfilt(SOS_LP, audioIN);
+            audioOUT_BP = sosfilt(SOS_BP, audioIN);
+            audioOUT_HP = sosfilt(SOS_HP, audioIN);
 
             %calculo el global
-            H_combined = H_LP + H_BP + H_HP ;
-            phase = angle(H_combined);
+            audioOUT = audioOUT_LP + audioOUT_BP + audioOUT_HP;
+            [H_audioOut,f_audioOut] = freqz(audioOUT,1,length(audioOUT),fs);
 
-            %trec la fase
-            phase = phasez(H_LP, 1) + phasez(H_BP,1) + phasez(H_HP,1);
+            %Calculem la H total
+            h = H_LP + H_BP + H_HP;
+            [H,f] = freqz(h,1,N,fs);
 
-            f_audio = linspace(0, fs/2, length(audioIN)/2+1);
+            [min_gain, max_gain] = bounds(param);
 
-            audioIN_fft = fft(audioIN);
-            audioOUT_fft = fft(audioOUT);
-            
             %plots
-            figure;
-            
-            subplot(3, 1, 1);
-            semilogx(f_LP, 10*log10(abs(H_LP)), 'b'); 
-            hold on;
-            semilogx(f_BP, 10*log10(abs(H_BP)), 'r'); 
-            semilogx(f_HP, 10*log10(abs(H_HP)), 'y');
+            figure
+            subplot(3,1,1);
+            semilogx(f_LP, 20*log10(abs(H_LP)));
+            hold on
+            semilogx(f_BP, 20*log10(abs(H_BP)));
+            semilogx(f_HP, 20*log10(abs(H_HP)));
             hold off;
             title('Individual Filters');
             xlabel('Frequency (Hz)');
@@ -83,54 +73,59 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             legend('LowPass filter', 'BandPass filter', 'HighPass filter');
             grid on;
             
-            subplot(3, 1, 2);
-            semilogx(f_LP, 10*log10(abs(H_combined)));
+            subplot(3,1,2);
+            semilogx(f, 20*log10(abs(H)));
             title('Custom Filter Response');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
-            xlim([0 23000]);
-            ylim([min_gain-15 max_gain+15]);
             grid on;
-            
 
             subplot(3, 1, 3);   
-            plot((0:length(phase)-1)/fs, phase); % Plot de la fase en función del tiempo
+            semilogx(f, unwrap(angle(H)));
             title('Custom Filter Phase');
             xlabel('Time (s)');
             ylabel('Phase (degrees)');
             grid on;
 
-            % Plot del dominio de la frecuencia
-            figure;            
-            subplot(2, 2, 1);
-            plot((0:length(audioIN)-1)/fs, audioIN);
-            title('Original - Time');
-            xlabel('Time (s)');
-            ylabel('Amplitude');
-            grid on;
-            
-            subplot(2, 2, 3);
-            plot((0:length(audioOUT)-1)/fs, audioOUT);
-            title('Filtered - Time');
-            xlabel('Time (s)');
-            ylabel('Amplitude');
-            grid on;
 
-            subplot(2, 2, 2);
-            semilogx(f_audio, 20*log10(abs(audioIN_fft(1:length(audioIN)/2+1))));
-            title('Original - Freq');
-            xlabel('Frequency (Hz)');
-            ylabel('Magnitude (dB)');
-            xlim([0 100000]);
-            
-            subplot(2, 2, 4);
-            semilogx(f_audio, 20*log10(abs(audioOUT_fft(1:length(audioOUT)/2+1))));
-            title('Filtered - Freq');
-            xlabel('Frequency (Hz)');
-            ylabel('Magnitude (dB)');
-            xlim([0 100000]);
+            figure;
+            subplot(4,2,1);
+            semilogx(f_audioIN, 20*log10(abs(H_total)));
+            title("Original-Freq.");
+            xlabel("Frequency (Hz)");
+            ylabel("Magnitude (dB)");
+            xlim([20, fs/2]);
+            ylim padded;
+            grid on
+            subplot(4,2,3)
+            semilogx(f_audioOut, 20*log10(abs(H_audioOut)));
+            title("Filtered-Freq.");
+            xlabel("Frequency (Hz)");
+            ylabel("Magnitude (dB)");
+            xlim([20, fs/2]);
+            ylim padded;
+            grid on
+            subplot(4,2,2); 
+            t_audioIN = (0:length(audioIN)-1) / fs;
+            plot(t_audioIN,audioIN);
+            title("Original-Time");
+            xlabel("time");
+            ylabel("amplitude");
+            xlim tight;
+            ylim padded;
+            grid on
+            subplot(4,2,4);
+            t_audioOUT = (0:length(audioOUT)-1) / fs;
+            plot(t_audioOUT,audioOUT);
+            title("Filtered-Time");
+            xlabel("time");
+            ylabel("amplitude");
+            xlim tight;
+            ylim padded;
+            grid on
 
-           
+
+
         case 'reverb'
 
             Tr = param(1); %Temps de reverberació
