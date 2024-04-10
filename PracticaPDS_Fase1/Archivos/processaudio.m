@@ -22,14 +22,9 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             x = [1; zeros(N-1, 1)];
 
             %aplico el guany al filtre
-            gainsLP = 10.^(param(1)/20);
-            gainsBP = 10.^(param(2)/20);
-            gainsHP = 10.^(param(3)/20);
-
-            %aplico el guany al filtre
-            SOS_LP(1, 1:3) = SOS_LP(1, 1:3) * prod(gainsLP) * db2mag(param(1));
-            SOS_BP(1, 1:3) = SOS_BP(1, 1:3) * prod(gainsBP) * db2mag(param(2));
-            SOS_HP(1, 1:3) = SOS_HP(1, 1:3) * prod(gainsHP) * db2mag(param(3));
+            SOS_LP(1, 1:3) = SOS_LP(1, 1:3) * prod(G_LP) * db2mag(param(1));
+            SOS_BP(1, 1:3) = SOS_BP(1, 1:3) * prod(G_BP) * db2mag(param(2));
+            SOS_HP(1, 1:3) = SOS_HP(1, 1:3) * prod(G_HP) * db2mag(param(3));
 
             %m'asseguro dels zeros i calculo rsposta impulsional
             h_LP = sosfilt(SOS_LP, x);
@@ -52,25 +47,22 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             [H_audioOut,f_audioOut] = freqz(audioOUT,1,length(audioOUT),fs);
 
             %Calculem la H total
-            h = H_LP + H_BP + H_HP;
-            [H,f] = freqz(h,1,N,fs);
-
-            [min_gain, max_gain] = bounds(param);
+            h = h_LP + h_BP + h_HP;
+            [H,f] = freqz(h,1,n,fs);
 
             %plots
             figure
             subplot(3,1,1);
             semilogx(f_LP, 20*log10(abs(H_LP)));
-            hold on
-            semilogx(f_BP, 20*log10(abs(H_BP)));
-            semilogx(f_HP, 20*log10(abs(H_HP)));
-            hold off;
             title('Individual Filters');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
-            xlim([0 23000]);
-            ylim([min_gain-15 max_gain+15]);
+            ylim ([-40,max(param)+10]);
+            hold on
+            semilogx(f_BP, 20*log10(abs(H_BP)));
+            semilogx(f_HP, 20*log10(abs(H_HP)));
             legend('LowPass filter', 'BandPass filter', 'HighPass filter');
+            hold off;
             grid on;
             
             subplot(3,1,2);
@@ -78,18 +70,20 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             title('Custom Filter Response');
             xlabel('Frequency (Hz)');
             ylabel('Magnitude (dB)');
+            ylim ([-40,max(param)+20]);
             grid on;
 
-            subplot(3, 1, 3);   
+            subplot(3, 1, 3);
             semilogx(f, unwrap(angle(H)));
-            title('Custom Filter Phase');
-            xlabel('Time (s)');
-            ylabel('Phase (degrees)');
-            grid on;
+            title("Custom Filter Fase");
+            xlabel("Frequency (Hz)");
+            ylabel("Phase (degrees)");
+            xlim([0, 10^4]);
+            grid on
 
 
             figure;
-            subplot(4,2,1);
+            subplot(2,2,1);
             semilogx(f_audioIN, 20*log10(abs(H_total)));
             title("Original-Freq.");
             xlabel("Frequency (Hz)");
@@ -97,7 +91,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             xlim([20, fs/2]);
             ylim padded;
             grid on
-            subplot(4,2,3)
+            subplot(2,2,3)
             semilogx(f_audioOut, 20*log10(abs(H_audioOut)));
             title("Filtered-Freq.");
             xlabel("Frequency (Hz)");
@@ -105,7 +99,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             xlim([20, fs/2]);
             ylim padded;
             grid on
-            subplot(4,2,2); 
+            subplot(2,2,2); 
             t_audioIN = (0:length(audioIN)-1) / fs;
             plot(t_audioIN,audioIN);
             title("Original-Time");
@@ -114,7 +108,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             xlim tight;
             ylim padded;
             grid on
-            subplot(4,2,4);
+            subplot(2,2,4);
             t_audioOUT = (0:length(audioOUT)-1) / fs;
             plot(t_audioOUT,audioOUT);
             title("Filtered-Time");
