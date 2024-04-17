@@ -17,15 +17,15 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
     switch effect
         case 'equalizer'
             
-            n = 2080;
+            n = 2048;
             N = 500;
             x = [1; zeros(N-1, 1)];
 
             %aplico el guany al filtre
-            SOS_LP(1, 1:3) = SOS_LP(1, 1:3) * prod(G_LP) * db2mag(param(1));
-            SOS_BP(1, 1:3) = SOS_BP(1, 1:3) * prod(G_BP) * db2mag(param(2));
-            SOS_HP(1, 1:3) = SOS_HP(1, 1:3) * prod(G_HP) * db2mag(param(3));
-
+            SOS_LP(1, 1:3) = SOS_LP(1, 1:3) * db2mag(param(1)) * prod(G_LP);
+            SOS_BP(1, 1:3) = SOS_BP(1, 1:3) * db2mag(param(2)) * prod(G_BP);
+            SOS_HP(1, 1:3) = SOS_HP(1, 1:3) * db2mag(param(3)) * prod(G_HP);
+    
             %m'asseguro dels zeros i calculo rsposta impulsional
             h_LP = sosfilt(SOS_LP, x);
             h_BP = sosfilt(SOS_BP, x);
