@@ -18,7 +18,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
         case 'equalizer'
             
             n = 2048;
-            N = 500;
+            N = 1000000;
             x = [1; zeros(N-1, 1)];
 
             %aplico el guany al filtre
@@ -74,7 +74,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             grid on;
 
             subplot(3, 1, 3);
-            semilogx(f, unwrap(angle(H)));
+            plot(f, unwrap(angle(H)));
             title("Custom Filter Fase");
             xlabel("Frequency (Hz)");
             ylabel("Phase (degrees)");
@@ -118,7 +118,8 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             ylim padded;
             grid on
 
-
+            
+            soundsc(audioOUT);  
 
         case 'reverb'
 
@@ -136,7 +137,7 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             %Calculem el numero de mostres totals que tindra la reverb
 
             %Calcul resposta mpulsional
-            c = 10^(-60 / (10 * Tr));
+            c = 10^(-6/Tr);
             % Generar el vector de tiempo
             t = (0:N-1) / fs * Tr;
             
@@ -224,11 +225,12 @@ function [audioOUT, audioIN] = processaudio(audioINfilename, effect, param)
             xlabel('Time (s)');
             ylabel('Amplitude');
 
+            soundsc(audioOUT_mix);
+
          otherwise
             error('Tipus d''efecte no vàlid. Trieu ''equalizer'' o ''reverb''.');
     
     end 
-
 
 
 end
